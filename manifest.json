@@ -1,0 +1,44 @@
+{
+  "manifest_version": 3,
+  "name": "Auto-Prompter for Gemini",
+  "short_name": "Auto-Prompter",
+  "version": "1.0.0",
+  "description": "Send a list of prompts to Gemini automatically, with loops, custom delays, limit-aware pauses and alerts.",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "permissions": [
+    "storage",
+    "notifications",
+    "alarms"
+  ],
+  "host_permissions": [
+    "https://gemini.google.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Auto-Prompter for Gemini",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://gemini.google.com/*"
+      ],
+      "js": [
+        "prompts.js",
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}

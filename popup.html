@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Auto-Prompter for Gemini</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#4f8cff" />
+        <stop offset=".55" stop-color="#a46bff" />
+        <stop offset="1" stop-color="#ff6fae" />
+      </linearGradient>
+    </defs>
+  </svg>
+
+  <header class="header">
+    <div class="brand">
+      <svg class="logo" viewBox="0 0 128 128" aria-hidden="true">
+        <rect width="128" height="128" rx="29" fill="url(#g)" />
+        <path d="M 97.8 76.3 A 36 36 0 1 1 91.6 40.9" fill="none" stroke="#fff" stroke-width="10" stroke-linecap="round" />
+        <path d="M 99.3 34.5 L 100.2 51 L 83.9 47.3 Z" fill="#fff" stroke="#fff" stroke-width="3" stroke-linejoin="round" />
+        <path d="M 54 46 L 54 82 L 83 64 Z" fill="#fff" stroke="#fff" stroke-width="5" stroke-linejoin="round" />
+      </svg>
+      <div>
+        <h1>Auto-Prompter</h1>
+        <p class="sub">for Gemini</p>
+      </div>
+    </div>
+    <span id="status" class="status idle"><i></i><span>Idle</span></span>
+  </header>
+
+  <div id="banner" class="banner hidden">
+    <span id="bannerText"></span>
+    <div class="banner-actions">
+      <button id="bannerBtn" class="banner-btn"></button>
+      <button id="bannerBtn2" class="banner-btn ghost"></button>
+    </div>
+  </div>
+
+  <section class="hero">
+    <div class="ring-wrap" id="ringWrap">
+      <svg class="ring" viewBox="0 0 120 120" aria-hidden="true">
+        <circle class="ring-track" cx="60" cy="60" r="54" />
+        <circle id="ringBar" class="ring-bar" cx="60" cy="60" r="54" />
+      </svg>
+      <button id="toggle" class="toggle" aria-label="Start">
+        <svg id="iconPlay" viewBox="0 0 24 24"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.4-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5Z" /></svg>
+        <svg id="iconStop" class="hidden" viewBox="0 0 24 24"><rect x="6.5" y="6.5" width="11" height="11" rx="2.5" /></svg>
+      </button>
+    </div>
+    <p id="phase" class="phase">Ready when you are</p>
+    <button id="skip" class="link hidden"></button>
+  </section>
+
+  <!-- Prompt source -->
+  <section class="card lockable" id="sourceCard">
+    <div class="card-head">
+      <span class="card-title">Prompts</span>
+      <span class="lock-hint">Stop to change</span>
+    </div>
+    <div class="seg" data-key="source">
+      <button data-v="builtin">Built-in</button>
+      <button data-v="file">.txt file</button>
+      <button data-v="write">Write</button>
+    </div>
+
+    <div class="panel" data-panel="source:builtin">
+      <p class="muted small"><b id="builtinCount" class="strong">0</b> prompts from <code>prompts.js</code></p>
+    </div>
+
+    <div class="panel" data-panel="source:file">
+      <label id="drop" class="drop">
+        <input id="fileInput" type="file" accept=".txt,text/plain" hidden />
+        <svg viewBox="0 0 24 24"><path d="M12 16V4m0 0-4 4m4-4 4 4M5 15v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3" /></svg>
+        <span><b>Drop a .txt file</b> or click to browse</span>
+        <span class="muted small">Separate prompts with an empty line</span>
+      </label>
+      <div id="fileInfo" class="file-info hidden">
+        <div class="file-icon">TXT</div>
+        <div class="file-meta">
+          <b id="fileName"></b>
+          <span id="fileCount" class="muted small"></span>
+        </div>
+        <button id="fileReplace" class="link">Replace</button>
+        <button id="fileRemove" class="link danger">Remove</button>
+      </div>
+      <p id="fileError" class="error-text small hidden"></p>
+    </div>
+
+    <div class="panel" data-panel="source:write">
+      <textarea id="writeText" rows="5" spellcheck="true"
+        placeholder="Write your prompts here.&#10;&#10;Leave an empty line between prompts — a prompt can have several lines."></textarea>
+      <p class="muted small"><b id="writeCount" class="strong">0</b> prompts</p>
+    </div>
+  </section>
+
+  <!-- Loop mode -->
+  <section class="card lockable" id="loopCard">
+    <div class="card-head">
+      <span class="card-title">Loop</span>
+      <span class="lock-hint">Stop to change</span>
+    </div>
+    <div class="seg" data-key="loopMode">
+      <button data-v="infinite">∞ Infinite</button>
+      <button data-v="count"># Count</button>
+      <button data-v="until">⏰ Until</button>
+    </div>
+    <div class="panel" data-panel="loopMode:infinite">
+      <p class="muted small">Keeps looping through the list until you press stop.</p>
+    </div>
+    <div class="panel" data-panel="loopMode:count">
+      <div class="row">
+        <div class="stepper">
+          <button id="countMinus" aria-label="Less">−</button>
+          <input id="loopCount" type="number" min="1" max="999" />
+          <button id="countPlus" aria-label="More">+</button>
+        </div>
+        <span class="muted small">passes through the whole list, then stop</span>
+      </div>
+    </div>
+    <div class="panel" data-panel="loopMode:until">
+      <div class="row">
+        <input id="untilTime" type="time" class="field" />
+        <span id="untilHint" class="muted small"></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Delay -->
+  <section class="card" id="delayCard">
+    <div class="card-head">
+      <span class="card-title">Delay between prompts</span>
+      <span class="muted small">applies to the next wait</span>
+    </div>
+    <div class="seg" data-key="delayMode">
+      <button data-v="fixed">Fixed</button>
+      <button data-v="random">Random range</button>
+    </div>
+    <div class="panel" data-panel="delayMode:fixed">
+      <div class="delay-row" data-which="min">
+        <span class="delay-label">Wait</span>
+        <input class="field num" type="number" min="1" />
+        <select class="field unit"><option value="1">sec</option><option value="60">min</option></select>
+      </div>
+      <div class="chips" data-presets="fixed"></div>
+    </div>
+    <div class="panel" data-panel="delayMode:random">
+      <div class="delay-row" data-which="min">
+        <span class="delay-label">Min</span>
+        <input class="field num" type="number" min="1" />
+        <select class="field unit"><option value="1">sec</option><option value="60">min</option></select>
+      </div>
+      <div class="delay-row" data-which="max">
+        <span class="delay-label">Max</span>
+        <input class="field num" type="number" min="1" />
+        <select class="field unit"><option value="1">sec</option><option value="60">min</option></select>
+      </div>
+      <div class="chips" data-presets="random"></div>
+    </div>
+  </section>
+
+  <!-- Live -->
+  <section class="card">
+    <div class="row between">
+      <span id="promptLabel" class="muted small">Up next</span>
+      <span id="position" class="small strong">1 of 1</span>
+    </div>
+    <div class="progress"><div id="progressBar"></div></div>
+    <p id="preview" class="preview">—</p>
+    <p id="runInfo" class="run-info small"></p>
+  </section>
+
+  <section class="stats">
+    <div class="stat"><b id="statSent">0</b><span>Sent</span></div>
+    <div class="stat"><b id="statPasses">0</b><span>Passes</span></div>
+    <div class="stat"><b id="statTime">0:00</b><span>Runtime</span></div>
+  </section>
+
+  <!-- Alerts -->
+  <section class="card">
+    <div class="card-head"><span class="card-title">Alerts when it stops</span></div>
+    <label class="switch-row">
+      <span>Desktop notifications</span>
+      <input type="checkbox" id="optNotify" class="switch" />
+    </label>
+    <label class="switch-row">
+      <span>Sound on the Gemini page</span>
+      <input type="checkbox" id="optSound" class="switch" />
+    </label>
+  </section>
+
+  <section class="card">
+    <div class="row between">
+      <span class="muted small">Recent activity</span>
+      <button id="reset" class="link">Clear</button>
+    </div>
+    <ul id="history" class="history"></ul>
+  </section>
+
+  <script src="prompts.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
